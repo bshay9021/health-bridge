@@ -6,7 +6,7 @@ const Home = () => {
   return (
     <View>
       <CustomCard 
-        title="Get Care"  
+        title="Get Care"
       />
     </View>
   )

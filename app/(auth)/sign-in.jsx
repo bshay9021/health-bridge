@@ -18,7 +18,7 @@ const SignIn = () => {
   });
 
   const devSubmit = () => {
-    router.replace("/home");
+    router.replace("/profile");
   }
 
   const submit = async () => {

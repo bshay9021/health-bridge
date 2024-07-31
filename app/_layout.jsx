@@ -1,8 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native'
 import { React, useEffect } from 'react'
 import { SplashScreen, Stack } from 'expo-router'
 import { useFonts } from 'expo-font'
 import GlobalProvider from '../context/GlobalProvider'
+import { Ionicons } from '@expo/vector-icons';
 // import VideoCall from '../../components/VideoCall';
 import VideoCall from '../components/VideoCall';
 SplashScreen.preventAutoHideAsync();
@@ -37,6 +38,7 @@ const RootLayout = () => {
 
         {/* <Stack.Screen name="/search/[query]" options={{ headerShown: false}} /> */}
 
+      {/* GlobalContext */}
       </Stack>
     </GlobalProvider>
   )

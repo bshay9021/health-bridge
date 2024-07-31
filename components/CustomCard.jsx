@@ -1,6 +1,6 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Image, PermissionsAndroid } from 'react-native'
 import React from 'react'
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
 import CustomButton from './CustomButton';
 import { useNavigation } from '@react-navigation/native';
@@ -19,57 +19,87 @@ const CustomCard = ({title, handlePress, containerStyles, textStyles, isLoading}
   const [localTracks, setLocalTracks] = useState([]);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
-  // const localStreamRef = useRef(null);
-  // const remoteStreamRef = useRef(null);
-  // const peerConnectionRef = useRef(new RTCPeerConnection(configuration));
+  const localStreamRef = useRef(null);
+  const remoteStreamRef = useRef(null);
+  const peerConnectionRef = useRef(null);
+  const [videoTracks, setVideoTracks] = useState([]);
 
-  // useEffect(() => {
-  //   if (localStream) {
-  //     localStreamRef.current.srcObject = localStream;
-  //   }
-  // }, [localStream]);
+  useEffect(() => {
+    requestCameraAndAudioPermission();
+  }, []);
 
-  // useEffect(() => {
-  //   if (remoteStream) {
-  //     remoteStreamRef.current.srcObject = remoteStream;
-  //   }
-  // }, [remoteStream]);
+  async function requestCameraAndAudioPermission() {
+    try {
+      const granted = await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+      ]);
+      if (
+        granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] === PermissionsAndroid.RESULTS.GRANTED &&
+        granted[PermissionsAndroid.PERMISSIONS.CAMERA] === PermissionsAndroid.RESULTS.GRANTED
+      ) {
+        console.log('You can use the camera and microphone');
+      } else {
+        console.log('Permission denied');
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+  }
 
   const startVideoCall = async () => {
-    console.log('hello');
-    // try {
-    //   const response = await axios.get('http://10.0.2.2:3000/token?identity', {
-    //     params: {
-    //       identity: 'bshay12'
-    //     }
-    //   });
-    //   const token = response.data.token;
+    try {
+      const response = await axios.get('http://10.0.2.2:3000/token?identity', {
+        params: {
+          identity: 'bshay12'
+        }
+      });
+      const token = response.data.token;
 
-    //   const tracks = await createLocalTracks();
-    //   setLocalTracks(tracks);
+      const tracks = await createLocalTracks({
+        audio: true,
+        video: { width: 640 }
+      });
+      setLocalTracks(tracks);
 
-    //   const localStream = await mediaDevices.getUserMedia({
-    //     audio: true,
-    //     video: true
-    //   });
-    //   setLocalStream(localStream);
+      // const localStream = await mediaDevices.getUserMedia({
+      //   audio: true,
+      //   video: true
+      // });
+      // setLocalStream(localStream);
 
-    //   const room = await connect(token, {
-    //     name: 'health-bridge-room',
-    //     tracks: tracks
-    //   });
-    //   setRoom(room);
+      const room = await connect(token, {
+        name: 'health-bridge-room',
+        tracks: tracks
+      });
+      setRoom(room);
 
-    //   room.on(`participant connected: ${participant.identity}`);
-    //   participant.tracks.forEach((publication) => {
-    //     if(publication.isSubscribed) {
-    //       const track = publication.track;
-    //       //handle attaching the track to UI
-    //     }
-    //   });
-    // } catch(error) {
-    //   console.error('Error starting video call:', error);
-    // }
+      room.on('participantConnected', participant => {
+        console.log(`Participant connected: ${participant.identity}`);
+        participant.tracks.forEach(publication => {
+          if (publication.isSubscribed) {
+            const track = publication.track;
+            // Handle attaching the track to UI
+            if (track.kind === 'video') {
+              setVideoTracks(prevTracks => [...prevTracks, track]);
+            } else if (track.kind === 'audio') {
+              setAudioTracks(prevTracks => [...prevTracks, track]);
+            }
+          }
+        });
+      });
+
+      room.on('trackSubscribed', track => {
+        if (track.kind === 'video') {
+          setVideoTracks(prevTracks => [...prevTracks, track]);
+        } else if (track.kind === 'audio') {
+          setAudioTracks(prevTracks => [...prevTracks, track]);
+        }
+      });
+
+    } catch(error) {
+      console.error('Error starting video call:', error);
+    }
   }
 
 
@@ -78,6 +108,20 @@ const CustomCard = ({title, handlePress, containerStyles, textStyles, isLoading}
       <MaterialIcons name="video-call" size={50} color="#2a9d8f" style={styles.icon} />
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.description}>Start a video call with a doctor immediately.</Text>
+      {localTracks.map(track => (
+        track.kind === 'video' && (
+          <View key={track.sid}>
+            <Text>Local Video</Text>
+            <track.attach />
+          </View>
+        )
+      ))}
+      {videoTracks.map(track => (
+        <View key={track.sid}>
+          <Text>Remote Video</Text>
+          <track.attach />
+        </View>
+      ))}
       <TouchableOpacity 
         style={styles.button}
         onPress={startVideoCall}
@@ -86,13 +130,12 @@ const CustomCard = ({title, handlePress, containerStyles, textStyles, isLoading}
       >
           <Text style={styles.buttonText}>Start Video Call</Text>
       </TouchableOpacity>
-      <View style={styles.mediaContainer}>
-        {localTracks.map(track => (
-          <View key={track.kind} style={styles.trackContainer}>
-            {track.attach()}
-          </View>
-        ))}
-      </View>
+      {/* {localStream && (
+        <RTCView
+          streamURL={localStream.toURL()}
+          style={{ width: '100%', height: 200 }}
+        />
+      )} */}
     </View>
   )
 }
